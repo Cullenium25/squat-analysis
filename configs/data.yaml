@@ -1,0 +1,35 @@
+flip_idx:
+- 0
+- 2
+- 1
+- 4
+- 3
+- 6
+- 5
+- 8
+- 7
+- 10
+- 9
+- 12
+- 11
+- 14
+- 13
+- 16
+- 15
+- 18
+- 17
+kpt_shape:
+- 19
+- 3
+names:
+- Person-19
+nc: 1
+roboflow:
+  license: CC BY 4.0
+  project: squat-detection-h1dwo
+  url: https://universe.roboflow.com/squat-form-capstone/squat-detection-h1dwo/dataset/19
+  version: 19
+  workspace: squat-form-capstone
+test: ../test/images
+train: ../train/images
+val: ../valid/images
