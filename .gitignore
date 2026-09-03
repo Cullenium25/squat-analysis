@@ -1,0 +1,29 @@
+# Local env
+.env
+.venv/
+
+# Data / outputs
+/configs/
+/runs/
+/test/
+/train/
+/valid/
+
+# Models / weights
+*.pt
+yolo11n-pose.pt
+yolo26n-pose.pt
+
+# Server scripts
+client_pi_webcam.py
+server_flask_app.py
+
+# Notebooks
+Squat_jupyter (unrun).ipynb
+Squat_jupyter.ipynb
+Squat_Jupyter (pre-run).ipynb
+squat-jupyter (yolo26).ipynb
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
