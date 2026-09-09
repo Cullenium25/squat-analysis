@@ -93,7 +93,7 @@ squat-analysis/
 ├── app/
 │   └── app.py                   # Gradio web demo → deploys to HF Spaces
 │
-├── notebooks/                   # Exploratory analysis (gitignored)
+├── notebooks/                   # Exploratory analysis
 ├── tests/                       # pytest suite
 ├── configs/                     # Dataset YAML, annotation configs
 ├── models/                      # Trained joblib artifacts (gitignored)
@@ -188,7 +188,7 @@ This is a proof-of-concept, not a clinical tool.
 - Single-person, single-camera-angle assumption; no multi-person or occlusion handling
 - Classifier thresholds are not yet calibrated per body type or camera angle
 
-**Planned improvements:** expanded training data, rep-by-rep summary report, web-based batch upload, inter-rater reliability validation with licensed PTs, and hopefully implementing more complex movement faults based on more temporal data in the future.
+**Planned improvements:** expanded training data, utilizing updated pose estimation models, rep-by-rep summary report, web-based batch upload, inter-rater reliability validation with licensed PTs, and implementing more complex movement faults based on more temporal data in the future.
 
 ---
 
