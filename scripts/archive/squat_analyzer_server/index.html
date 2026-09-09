@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Squat Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        canvas {
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #e5e7eb;
+        }
+        .container {
+            max-width: 1024px;
+        }
+        .button-group > button, .button-group > label {
+            transition: all 0.2s ease-in-out;
+        }
+        .button-group > button:hover, .button-group > label:hover {
+            transform: translateY(-2px);
+            box-shadow: 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .dot-pulse {
+          animation: dot-pulse-animation 1.5s infinite;
+        }
+        @keyframes dot-pulse-animation {
+            0%, 80%, 100% {
+                transform: scale(0);
+                opacity: 0;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="container mx-auto mt-8 p-6 bg-white rounded-3xl shadow-xl flex flex-col items-center">
+        <h1 class="text-3xl sm:text-4xl font-bold text-center mb-6 text-gray-800">AI Squat Analyzer</h1>
+        <p class="text-center text-gray-600 mb-8 max-w-lg">Get real-time feedback on your squat form by using your webcam or uploading a video or image.</p>
+        
+        <div class="w-full flex justify-center mb-6 space-x-2 sm:space-x-4">
+            <input type="file" id="imageInput" accept="image/*" class="hidden">
+            <input type="file" id="videoInput" accept="video/*" class="hidden">
+
+            <!-- Webcam Buttons -->
+            <button id="webcamBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-full shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition ease-in-out duration-150">
+                Start Webcam
+            </button>
+            <button id="stopWebcamBtn" class="bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-6 rounded-full shadow-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition ease-in-out duration-150 hidden">
+                Stop Webcam
+            </button>
+            
+            <!-- File Upload Buttons -->
+            <label for="imageInput" class="cursor-pointer bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-6 rounded-full shadow-lg transition ease-in-out duration-150 flex items-center justify-center">
+                Upload Image
+            </label>
+            <label for="videoInput" class="cursor-pointer bg-purple-500 hover:bg-purple-600 text-white font-medium py-3 px-6 rounded-full shadow-lg transition ease-in-out duration-150 flex items-center justify-center">
+                Upload Video
+            </label>
+        </div>
+
+        <div class="relative w-full overflow-hidden rounded-xl shadow-lg border-2 border-gray-200">
+            <canvas id="canvas" class="w-full"></canvas>
+            <video id="videoPlayer" class="hidden absolute top-0 left-0 w-full h-full object-cover"></video>
+            <!-- Hidden canvas for analysis -->
+            <canvas id="hiddenCanvas" class="hidden"></canvas>
+        </div>
+        
+        <div id="loadingIndicator" class="hidden flex items-center justify-center space-x-2 mt-6">
+            <div class="w-4 h-4 rounded-full bg-blue-500 dot-pulse" style="animation-delay: -0.3s;"></div>
+            <div class="w-4 h-4 rounded-full bg-blue-500 dot-pulse" style="animation-delay: -0.15s;"></div>
+            <div class="w-4 h-4 rounded-full bg-blue-500 dot-pulse" style="animation-delay: 0s;"></div>
+            <span class="text-gray-600">Analyzing...</span>
+        </div>
+
+        <div id="feedback" class="mt-6 p-4 bg-gray-50 rounded-lg w-full text-center">
+            <p class="text-lg text-gray-700 font-semibold" id="statusMessage">Awaiting input...</p>
+            <p class="mt-2 text-sm text-gray-500" id="tagsOutput">Predicted tags will appear here.</p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        const hiddenCanvas = document.getElementById('hiddenCanvas');
+        const hiddenContext = hiddenCanvas.getContext('2d');
+        const webcamBtn = document.getElementById('webcamBtn');
+        const stopWebcamBtn = document.getElementById('stopWebcamBtn');
+        const imageInput = document.getElementById('imageInput');
+        const videoInput = document.getElementById('videoInput');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const statusMessage = document.getElementById('statusMessage');
+        const tagsOutput = document.getElementById('tagsOutput');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+
+        const BACKEND_URL = 'ADDRESS';
+        let stream = null;
+        let videoFrameInterval = null;
+        let analysisMode = 'none';
+
+        const updateCanvasSize = () => {
+            const containerWidth = canvas.parentElement.offsetWidth;
+            canvas.width = containerWidth;
+            canvas.height = containerWidth * 0.75;
+            hiddenCanvas.width = canvas.width;
+            hiddenCanvas.height = canvas.height;
+        };
+        window.addEventListener('resize', updateCanvasSize);
+        updateCanvasSize();
+
+        const drawKeypoints = (keypoints) => {
+            if (!keypoints || keypoints.length === 0) return;
+            const jointColors = { 'head': '#EF4444', 'torso': '#3B82F6', 'arms': '#10B981', 'legs': '#F59E0B' };
+            const jointConnections = [
+                [0, 1], [0, 2], [1, 3], [2, 4], [3, 5], [4, 6],
+                [5, 7], [7, 9], [6, 8], [8, 10],
+                [5, 6], [5, 11], [6, 12], [11, 12],
+                [11, 13], [13, 15], [15, 17], [12, 14], [14, 16], [16, 18]
+            ];
+            const bodyParts = { 'head': [0, 1, 2, 3, 4], 'torso': [5, 6, 11, 12], 'arms': [7, 8, 9, 10], 'legs': [13, 14, 15, 16, 17, 18] };
+            context.lineWidth = 4;
+            context.lineCap = 'round';
+            context.strokeStyle = '#3B82F6';
+            for (const [p1, p2] of jointConnections) {
+                if (keypoints[p1] && keypoints[p2]) {
+                    context.beginPath();
+                    context.moveTo(keypoints[p1][0], keypoints[p1][1]);
+                    context.lineTo(keypoints[p2][0], keypoints[p2][1]);
+                    context.stroke();
+                }
+            }
+            for (let i = 0; i < keypoints.length; i++) {
+                if (keypoints[i]) {
+                    let color = '#3B82F6';
+                    if (bodyParts.head.includes(i)) color = jointColors.head;
+                    else if (bodyParts.torso.includes(i)) color = jointColors.torso;
+                    else if (bodyParts.arms.includes(i)) color = jointColors.arms;
+                    else if (bodyParts.legs.includes(i)) color = jointColors.legs;
+                    context.beginPath();
+                    context.arc(keypoints[i][0], keypoints[i][1], 6, 0, 2 * Math.PI);
+                    context.fillStyle = color;
+                    context.fill();
+                }
+            }
+        };
+
+        async function sendFrameForAnalysis(frame) {
+            // Draw the current video frame onto the hidden canvas
+            hiddenContext.drawImage(frame, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+            
+            const blob = await new Promise(resolve => hiddenCanvas.toBlob(resolve, 'image/jpeg', 0.8));
+            const formData = new FormData();
+            formData.append('frame', blob, 'frame.jpg');
+
+            try {
+                const response = await fetch(BACKEND_URL, {
+                    method: 'POST',
+                    body: formData,
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Server response:', data);
+
+                // Clear main canvas and draw new video frame and keypoints
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                context.drawImage(frame, 0, 0, canvas.width, canvas.height);
+                
+                if (data.keypoints) {
+                    drawKeypoints(data.keypoints);
+                }
+                
+                tagsOutput.textContent = data.predicted_tags && data.predicted_tags.length > 0
+                    ? `Predicted Tags: ${data.predicted_tags.join(', ')}`
+                    : 'No issues detected.';
+                
+            } catch (error) {
+                console.error('Error:', error);
+                loadingIndicator.classList.add('hidden');
+                
+                let errorMessage = 'Error during analysis. Check console for details.';
+                if (error.message.includes('JSON')) {
+                    errorMessage = 'Server response was not valid JSON. Backend may be offline.';
+                } else if (error.message.includes('HTTP')) {
+                    errorMessage = `Server returned an error: ${error.message}.`;
+                }
+
+                statusMessage.textContent = errorMessage;
+                tagsOutput.textContent = '';
+            }
+        }
+
+        const stopCurrentMode = () => {
+            if (videoFrameInterval) {
+                clearInterval(videoFrameInterval);
+                videoFrameInterval = null;
+            }
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            videoPlayer.pause();
+            videoPlayer.removeAttribute('src');
+            videoPlayer.load();
+            videoPlayer.classList.add('hidden');
+            webcamBtn.classList.remove('hidden');
+            stopWebcamBtn.classList.add('hidden');
+            loadingIndicator.classList.add('hidden');
+            statusMessage.textContent = 'Awaiting input...';
+            tagsOutput.textContent = 'Predicted tags will appear here.';
+            analysisMode = 'none';
+        };
+
+        const startWebcamWithCountdown = async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                videoPlayer.srcObject = stream;
+                videoPlayer.classList.remove('hidden');
+                webcamBtn.classList.add('hidden');
+                stopWebcamBtn.classList.remove('hidden');
+                
+                await new Promise(resolve => {
+                    videoPlayer.onloadedmetadata = () => {
+                        videoPlayer.play();
+                        resolve();
+                    };
+                });
+
+                let countdown = 5;
+                statusMessage.textContent = `Get ready... ${countdown}`;
+                const countdownInterval = setInterval(() => {
+                    countdown--;
+                    if (countdown > 0) {
+                        statusMessage.textContent = `Get ready... ${countdown}`;
+                    } else {
+                        clearInterval(countdownInterval);
+                        loadingIndicator.classList.remove('hidden');
+                        statusMessage.textContent = 'Analysis is live. Please begin squatting!';
+                        videoFrameInterval = setInterval(() => {
+                            sendFrameForAnalysis(videoPlayer);
+                        }, 500);
+                    }
+                }, 1000);
+
+            } catch (err) {
+                console.error("Error accessing the webcam:", err);
+                stopCurrentMode();
+                statusMessage.textContent = 'Error: Could not access webcam. Please check permissions.';
+            }
+        };
+
+        webcamBtn.addEventListener('click', () => {
+            stopCurrentMode();
+            startWebcamWithCountdown();
+        });
+
+        stopWebcamBtn.addEventListener('click', stopCurrentMode);
+
+        imageInput.addEventListener('change', (event) => {
+            stopCurrentMode();
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    context.clearRect(0, 0, canvas.width, canvas.height);
+                    context.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    statusMessage.textContent = 'Image uploaded. Analyzing...';
+                    loadingIndicator.classList.remove('hidden');
+                    analysisMode = 'image';
+                    sendFrameForAnalysis(canvas);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        videoInput.addEventListener('change', (event) => {
+            stopCurrentMode();
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const fileURL = URL.createObjectURL(file);
+            videoPlayer.src = fileURL;
+            videoPlayer.classList.remove('hidden');
+            loadingIndicator.classList.remove('hidden');
+            videoPlayer.onloadedmetadata = () => {
+                videoPlayer.play();
+                statusMessage.textContent = 'Video uploaded. Analyzing frames...';
+                analysisMode = 'video';
+                videoFrameInterval = setInterval(() => {
+                    sendFrameForAnalysis(videoPlayer);
+                    if (videoPlayer.paused) {
+                        stopCurrentMode();
+                        statusMessage.textContent = 'Video analysis complete.';
+                    }
+                }, 500);
+            };
+        });
+    </script>
+</body>
+</html>

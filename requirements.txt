@@ -1,0 +1,10 @@
+opencv-python-headless # Use headless for server/embedded environments
+ultralytics
+scikit-learn
+joblib
+numpy
+pandas
+tqdm
+requests
+# If you need yt-dlp for YouTube videos:
+# yt-dlp

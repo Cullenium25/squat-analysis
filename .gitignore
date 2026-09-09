@@ -1,0 +1,27 @@
+# Local env
+.env
+.venv/
+
+# Data / outputs
+/configs/
+/runs/
+/test/
+/train/
+/valid/
+
+# Notebooks
+squat-jupyter (yolo26).ipynb
+
+# Models / weights
+*.pt
+yolo11n-pose.pt
+yolo26n-pose.pt
+
+# Presentation / binary blobs
+*.pptx
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+__pycache__/
+*.egg-info/
