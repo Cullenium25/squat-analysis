@@ -2,7 +2,8 @@
 
 [![Live Demo](https://img.shields.io/badge/HuggingFace-Demo-ffcc00)](https://huggingface.co/spaces/Cullenium/squat-analysis-demo)
 
-This repository explores whether a computer-vision and machine-learning pipeline can identify selected squat-form patterns from pre-recorded video. The purpose is to explore the feasibility and limitations of applying pose estimation and multi-label classification to movement analysis, without wearable sensors or lab equipment.
+The purpose is to explore the feasibility and limitations of applying pose estimation and multi-label classification to movement analysis, without wearable sensors or lab equipment.
+This repository explores whether a computer-vision and machine-learning pipeline can identify selected squat-form patterns from pre-recorded video.
 Among some of the more common squat faults are: knees caving in, excessive forward lean, insufficient depth. This AI Squat Analyzer is a **proof of concept** designed to identify common squatting faults and subject point of view, not to designed to make authoritative judgments about exercise safety, clinical status, or technique quality. Although built by a physical therapist learning applied ML, this tool is not a validated clinical assessment and should not be used as replacement for proper diagnostic clinical assessment. Possible uses may be for recreational use by fitness enthusiasts who lack the means to observe themselves properly, coaches, and clinical professionals as a supplementary educational tool.
 
 --- 
